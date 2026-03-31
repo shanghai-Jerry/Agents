@@ -87,7 +87,13 @@ def create_orchestrator(
     subagent_dicts: list[dict[str, Any]] = []
     for agent_config in registry.list_agents():
         formatted = agent_config.format_prompt(date=current_date)
-        subagent_dicts.append(formatted.to_dict)
+        agent_dict = formatted.to_dict
+        # Allow per-subagent model override
+        if agent_config.model:
+            from langchain.chat_models import init_chat_model as _init
+            subagent_model = _init(model=agent_config.model, temperature=config.model_temperature)
+            agent_dict["model"] = subagent_model
+        subagent_dicts.append(agent_dict)
 
     logger.info(
         "Creating orchestrator with %d sub-agents: %s",

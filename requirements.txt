@@ -1,0 +1,21 @@
+# Core
+deepagents>=0.2.6
+pydantic>=2.0.0
+
+# LLM Providers
+langchain-openai>=1.0.2
+langchain-anthropic>=1.0.3
+langchain-google-genai>=3.1.0
+
+# Tools & Utilities
+rich>=14.0.0
+pyyaml>=6.0.0
+python-dotenv>=1.0.0
+httpx>=0.28.1
+markdownify>=1.2.0
+tavily-python>=0.5.0
+
+# SSE Server
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+sse-starlette>=2.0.0

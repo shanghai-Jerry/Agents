@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Chat</title>
+    <style>
+        :root {
+            --bg-primary: #0f0f11;
+            --bg-secondary: #1a1a2e;
+            --bg-tertiary: #16213e;
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --accent: #0f3460;
+            --accent-light: #533483;
+            --border: #2a2a3e;
+            --success: #00c853;
+            --warning: #ffab00;
+            --error: #ff5252;
+            --info: #448aff;
+            --user-bubble: #1a237e;
+            --ai-bubble: #1a1a2e;
+            --tool-bg: #0d2137;
+            --subagent-bg: #1b0d2e;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        .header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+        .header h1 {
+            font-size: 18px;
+            font-weight: 600;
+            background: linear-gradient(135deg, #e0e0e0, #a0a0a0);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .header .model-info {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        .header .status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+        }
+        .header .status .dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+        }
+        .header .status .dot.disconnected { background: var(--error); }
+        .header .status .dot.streaming { background: var(--warning); animation: pulse 1s infinite; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        /* Chat Container */
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px 24px;
+            scroll-behavior: smooth;
+        }
+
+        /* Messages */
+        .message {
+            margin-bottom: 16px;
+            max-width: 800px;
+        }
+        .message.user {
+            margin-left: auto;
+        }
+        .message-bubble {
+            padding: 12px 16px;
+            border-radius: 12px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .message.user .message-bubble {
+            background: var(--user-bubble);
+            border-bottom-right-radius: 4px;
+        }
+        .message.assistant .message-bubble {
+            background: var(--ai-bubble);
+            border: 1px solid var(--border);
+            border-bottom-left-radius: 4px;
+        }
+        .message-time {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+            padding: 0 4px;
+        }
+        .message.user .message-time { text-align: right; }
+
+        /* Tool Calls */
+        .tool-call {
+            background: var(--tool-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin: 8px 0;
+            padding: 8px 12px;
+            font-size: 13px;
+        }
+        .tool-call .tool-name {
+            color: var(--info);
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .tool-call .tool-args {
+            color: var(--text-secondary);
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 12px;
+            margin-top: 4px;
+            max-height: 60px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .tool-call .tool-result {
+            color: var(--text-secondary);
+            font-size: 12px;
+            margin-top: 6px;
+            max-height: 120px;
+            overflow-y: auto;
+            border-top: 1px solid var(--border);
+            padding-top: 6px;
+            white-space: pre-wrap;
+        }
+
+        /* Sub-agent Cards */
+        .subagent-card {
+            background: var(--subagent-bg);
+            border: 1px solid var(--accent-light);
+            border-radius: 8px;
+            margin: 8px 0;
+            padding: 12px 16px;
+        }
+        .subagent-card .subagent-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .subagent-card .subagent-badge {
+            background: var(--accent-light);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .subagent-card .subagent-name {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--accent-light);
+        }
+        .subagent-card .subagent-content {
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+        .subagent-card .subagent-status {
+            font-size: 11px;
+            color: var(--warning);
+            margin-top: 6px;
+        }
+
+        /* Thinking indicator */
+        .thinking {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 0;
+            color: var(--text-secondary);
+            font-size: 13px;
+        }
+        .thinking .dots span {
+            display: inline-block;
+            width: 4px; height: 4px;
+            background: var(--text-secondary);
+            border-radius: 50%;
+            animation: dot-bounce 1.4s infinite ease-in-out both;
+        }
+        .thinking .dots span:nth-child(1) { animation-delay: 0s; }
+        .thinking .dots span:nth-child(2) { animation-delay: 0.2s; }
+        .thinking .dots span:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes dot-bounce {
+            0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+            40% { transform: scale(1); opacity: 1; }
+        }
+
+        /* Input Area */
+        .input-area {
+            padding: 16px 24px;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+        .input-wrapper {
+            max-width: 800px;
+            margin: 0 auto;
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+        .input-wrapper textarea {
+            flex: 1;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px 16px;
+            color: var(--text-primary);
+            font-size: 14px;
+            font-family: inherit;
+            resize: none;
+            outline: none;
+            min-height: 44px;
+            max-height: 200px;
+            line-height: 1.5;
+            transition: border-color 0.2s;
+        }
+        .input-wrapper textarea:focus {
+            border-color: var(--accent-light);
+        }
+        .input-wrapper textarea::placeholder {
+            color: var(--text-secondary);
+        }
+        .input-wrapper button {
+            background: linear-gradient(135deg, var(--accent), var(--accent-light));
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 12px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.1s;
+            flex-shrink: 0;
+        }
+        .input-wrapper button:hover { opacity: 0.9; }
+        .input-wrapper button:active { transform: scale(0.98); }
+        .input-wrapper button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
+
+        /* Code blocks */
+        .message-bubble code {
+            background: rgba(255,255,255,0.1);
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+        }
+        .message-bubble pre {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+            margin: 8px 0;
+            overflow-x: auto;
+        }
+        .message-bubble pre code {
+            background: none;
+            padding: 0;
+        }
+
+        /* Error */
+        .error-banner {
+            background: rgba(255, 82, 82, 0.1);
+            border: 1px solid var(--error);
+            color: var(--error);
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin: 8px 0;
+            font-size: 13px;
+        }
+
+        /* New chat button */
+        .new-chat-btn {
+            background: none;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .new-chat-btn:hover {
+            border-color: var(--text-secondary);
+            color: var(--text-primary);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div>
+            <h1>🤖 Agent Chat</h1>
+            <div class="model-info" id="modelInfo">Loading...</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:12px;">
+            <div class="status">
+                <div class="dot" id="statusDot"></div>
+                <span id="statusText">Connected</span>
+            </div>
+            <button class="new-chat-btn" onclick="newChat()">+ New Chat</button>
+        </div>
+    </div>
+
+    <div class="chat-container" id="chatContainer">
+        <div class="message assistant">
+            <div class="message-bubble">Hello! I'm a multi-agent assistant. I can help with research, analysis, writing, and more. What would you like to do?</div>
+        </div>
+    </div>
+
+    <div class="input-area">
+        <div class="input-wrapper">
+            <textarea
+                id="userInput"
+                placeholder="Type your message... (Enter to send, Shift+Enter for new line)"
+                rows="1"
+            ></textarea>
+            <button id="sendBtn" onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <script>
+        const chatContainer = document.getElementById('chatContainer');
+        const userInput = document.getElementById('userInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        const modelInfo = document.getElementById('modelInfo');
+
+        let threadId = generateThreadId();
+        let isStreaming = false;
+
+        // Initialize
+        fetchConfig();
+        setupInput();
+
+        function generateThreadId() {
+            return 'thread-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+        }
+
+        async function fetchConfig() {
+            try {
+                const resp = await fetch('/api/config');
+                const cfg = await resp.json();
+                modelInfo.textContent = `Model: ${cfg.primary_model} | Routing: ${cfg.routing_strategy}`;
+            } catch (e) {
+                modelInfo.textContent = 'Config unavailable';
+            }
+        }
+
+        function setupInput() {
+            userInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+            userInput.addEventListener('input', () => {
+                userInput.style.height = 'auto';
+                userInput.style.height = Math.min(userInput.scrollHeight, 200) + 'px';
+            });
+        }
+
+        function newChat() {
+            threadId = generateThreadId();
+            chatContainer.innerHTML = `
+                <div class="message assistant">
+                    <div class="message-bubble">New conversation started. How can I help?</div>
+                </div>`;
+        }
+
+        function scrollToBottom() {
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function createMessageEl(role) {
+            const msg = document.createElement('div');
+            msg.className = `message ${role}`;
+            const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+            msg.innerHTML = `<div class="message-bubble"></div><div class="message-time">${time}</div>`;
+            chatContainer.appendChild(msg);
+            return msg.querySelector('.message-bubble');
+        }
+
+        function appendText(bubble, text) {
+            if (bubble.querySelector('.thinking')) return;
+            bubble.textContent += text;
+            scrollToBottom();
+        }
+
+        function showThinking(bubble) {
+            bubble.innerHTML = '<div class="thinking"><span>Thinking</span><div class="dots"><span></span><span></span><span></span></div></div>';
+        }
+
+        function removeThinking(bubble) {
+            const thinking = bubble.querySelector('.thinking');
+            if (thinking) thinking.remove();
+        }
+
+        function addToolCall(bubble, toolName, args) {
+            removeThinking(bubble);
+            const el = document.createElement('div');
+            el.className = 'tool-call';
+            el.innerHTML = `
+                <div class="tool-name">🔧 ${escapeHtml(toolName)}</div>
+                ${args ? `<div class="tool-args">${escapeHtml(args)}</div>` : ''}
+                <div class="tool-result">Running...</div>`;
+            bubble.appendChild(el);
+            return el.querySelector('.tool-result');
+        }
+
+        function addSubagentCard(bubble, name, content) {
+            removeThinking(bubble);
+            const el = document.createElement('div');
+            el.className = 'subagent-card';
+            el.innerHTML = `
+                <div class="subagent-header">
+                    <span class="subagent-badge">Sub-Agent</span>
+                    <span class="subagent-name">${escapeHtml(name)}</span>
+                </div>
+                <div class="subagent-content">${escapeHtml(content)}</div>
+                <div class="subagent-status">Processing...</div>`;
+            bubble.appendChild(el);
+            return el.querySelector('.subagent-status');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        async function sendMessage() {
+            const text = userInput.value.trim();
+            if (!text || isStreaming) return;
+
+            isStreaming = true;
+            sendBtn.disabled = true;
+            userInput.value = '';
+            userInput.style.height = 'auto';
+
+            // Show user message
+            createMessageEl('user').textContent = text;
+
+            // Create assistant bubble
+            const aiBubble = createMessageEl('assistant');
+            showThinking(aiBubble);
+            setStreaming(true);
+
+            try {
+                const resp = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: text, thread_id: threadId }),
+                });
+
+                if (!resp.ok) {
+                    throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
+                }
+
+                const reader = resp.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                // Track current tool/subagent elements
+                let currentToolResult = null;
+                let currentSubagentStatus = null;
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
+
+                    for (const line of lines) {
+                        if (line.startsWith('event:')) continue;
+                        if (!line.startsWith('data:')) continue;
+                        const data = line.slice(5).trim();
+                        if (!data) continue;
+
+                        try {
+                            const event = JSON.parse(data);
+
+                            switch (event.type) {
+                                case 'token':
+                                    removeThinking(aiBubble);
+                                    appendText(aiBubble, event.content);
+                                    break;
+
+                                case 'tool_call':
+                                    removeThinking(aiBubble);
+                                    currentToolResult = addToolCall(
+                                        aiBubble, event.data.tool, event.data.args
+                                    );
+                                    break;
+
+                                case 'tool_result':
+                                    if (currentToolResult) {
+                                        currentToolResult.textContent = event.content;
+                                        currentToolResult = null;
+                                    }
+                                    break;
+
+                                case 'subagent':
+                                    const subagentName = event.data.name || 'Sub-Agent';
+                                    currentSubagentStatus = addSubagentCard(
+                                        aiBubble, subagentName, event.content || 'Starting...'
+                                    );
+                                    break;
+
+                                case 'done':
+                                    break;
+
+                                case 'error':
+                                    removeThinking(aiBubble);
+                                    const errEl = document.createElement('div');
+                                    errEl.className = 'error-banner';
+                                    errEl.textContent = `Error: ${event.content}`;
+                                    aiBubble.appendChild(errEl);
+                                    break;
+                            }
+                        } catch (parseErr) {
+                            // Ignore non-JSON lines (heartbeats, etc.)
+                        }
+                    }
+                }
+            } catch (err) {
+                removeThinking(aiBubble);
+                const errEl = document.createElement('div');
+                errEl.className = 'error-banner';
+                errEl.textContent = `Connection error: ${err.message}`;
+                aiBubble.appendChild(errEl);
+            }
+
+            setStreaming(false);
+            isStreaming = false;
+            sendBtn.disabled = false;
+            userInput.focus();
+        }
+
+        function setStreaming(streaming) {
+            if (streaming) {
+                statusDot.className = 'dot streaming';
+                statusText.textContent = 'Streaming';
+            } else {
+                statusDot.className = 'dot';
+                statusText.textContent = 'Connected';
+            }
+        }
+    </script>
+</body>
+</html>

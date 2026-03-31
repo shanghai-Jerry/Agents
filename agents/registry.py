@@ -36,18 +36,23 @@ class SubAgentConfig:
     tools: list[BaseTool | Callable[..., Any] | dict[str, Any]] = field(default_factory=list)
     max_iterations: int = 3
     enabled: bool = True
+    model: str | None = None
+    """Optional model override for this sub-agent (e.g. ``"claude-sonnet-4-5"`` or ``"openai:gpt-4o"``)."""
 
     # --- Computed properties ---
 
     @property
     def to_dict(self) -> dict[str, Any]:
         """Convert to the dictionary format expected by ``create_deep_agent``."""
-        return {
+        d: dict[str, Any] = {
             "name": self.name,
             "description": self.description,
             "system_prompt": self.system_prompt,
             "tools": self.tools,
         }
+        if self.model:
+            d["model"] = self.model
+        return d
 
     def format_prompt(self, **kwargs: str) -> SubAgentConfig:
         """Return a copy with the system_prompt formatted using *kwargs*."""
@@ -58,6 +63,7 @@ class SubAgentConfig:
             tools=self.tools,
             max_iterations=self.max_iterations,
             enabled=self.enabled,
+            model=self.model,
         )
 
 

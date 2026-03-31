@@ -16,6 +16,10 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "httpx>=0.28.1",
     "markdownify>=1.2.0",
+    "tavily-python>=0.5.0",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "sse-starlette>=2.0.0",
 ]
 
 [project.optional-dependencies]
