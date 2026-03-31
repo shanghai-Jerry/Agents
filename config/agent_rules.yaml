@@ -1,0 +1,36 @@
+# Agent Intent Routing Rules
+# ===================================
+# Each rule maps user intent patterns to a specific sub-agent.
+# Patterns are evaluated as regex against the user input (case-insensitive).
+# Rules are evaluated in order; the first match wins.
+#
+# When no rule matches, the orchestrator falls back to LLM-based classification.
+#
+# To add a new rule:
+#   - Add a new entry under `rules:`
+#   - Set `patterns` (list of regex strings)
+#   - Set `agent` to the target sub-agent name
+#   - Optionally set `description` for documentation
+#
+# Example:
+#   - patterns: ["search|查找|搜索|research|调研"]
+#     agent: researcher
+#     description: "Route research and search queries"
+
+rules: []
+
+# ===================================
+# Example rules (uncomment and customize as needed):
+# ===================================
+#
+# - patterns: ["写代码|编程|code|develop|implement|写一个.*函数"]
+#   agent: coder
+#   description: "Route coding and development tasks"
+#
+# - patterns: ["写文档|文档|document|report|报告"]
+#   agent: writer
+#   description: "Route documentation and report writing tasks"
+#
+# - patterns: ["数据分析|data|统计|图表|visualization"]
+#   agent: analyst
+#   description: "Route data analysis tasks"
