@@ -1,16 +1,32 @@
 """Research sub-agent tools.
 
-Imports shared tools for use by the research sub-agent.
+Provides tool references for the research agent. Tools are sourced from the
+global ResourceRegistry and will be further filtered by the permission system
+at registration time.
 """
 
-from tools.thinking import think_tool
+# Import triggers @register_tool decorator registration
+import tools.thinking  # noqa: F401
 
-__all__ = ["think_tool"]
+from agents.resources import resource_registry
 
 
-def __getattr__(name: str):
-    """Lazy import for tavily_search to avoid import errors when deps are missing."""
-    if name == "tavily_search":
-        from tools.search import tavily_search
-        return tavily_search
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+def get_default_tools() -> list:
+    """Get the default tool set for the research agent.
+
+    These tools serve as the initial set before permission filtering.
+    The permission system will override this list based on permissions.yaml.
+
+    Returns:
+        List of LangChain BaseTool instances.
+    """
+    default_tool_names = ["think_tool", "tavily_search"]
+    result = []
+    for name in default_tool_names:
+        instance = resource_registry.get_tool_instance(name)
+        if instance is not None:
+            result.append(instance)
+    return result
+
+
+__all__ = ["get_default_tools"]

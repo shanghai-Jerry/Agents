@@ -1,0 +1,13 @@
+# Research Agent Permissions
+# ===================================
+# Whitelist of tools, skills, and groups this agent is authorized to use.
+# Default: no access. Only explicitly listed resources are permitted.
+
+permissions:
+  tools:
+    - think_tool             # Strategic reflection tool
+    - tavily_search          # Web search via Tavily API
+  skills: []
+  groups:
+    - core                   # Grant all tools in the "core" group
+    - search                 # Grant all tools in the "search" group

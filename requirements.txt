@@ -19,3 +19,6 @@ tavily-python>=0.5.0
 fastapi>=0.115.0
 uvicorn[standard]>=0.32.0
 sse-starlette>=2.0.0
+
+# Optional: Code Execution (uncomment to enable coder sub-agent)
+# modal>=0.60

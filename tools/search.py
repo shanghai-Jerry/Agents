@@ -10,8 +10,6 @@ import os
 import logging
 from typing import Any
 
-from langchain_core.tools import tool
-
 logger = logging.getLogger(__name__)
 
 # Check if Tavily is available
@@ -37,7 +35,13 @@ def _get_tavily_client() -> TavilyClient:
     return TavilyClient(api_key=api_key)
 
 
-@tool(parse_docstring=True)
+from agents.resources import register_tool
+
+
+@register_tool(
+    group="search",
+    description="Search the web using Tavily to find up-to-date information.",
+)
 def tavily_search(query: str, max_results: int = 10, search_depth: str = "basic") -> str:
     """Search the web using Tavily to find up-to-date information.
 

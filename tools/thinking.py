@@ -4,10 +4,13 @@ Provides a deliberate pause for reflection and decision-making during task execu
 All sub-agents can benefit from this tool for self-evaluation and planning.
 """
 
-from langchain_core.tools import tool
+from agents.resources import register_tool
 
 
-@tool(parse_docstring=True)
+@register_tool(
+    group="core",
+    description="Tool for strategic reflection on progress and decision-making.",
+)
 def think_tool(reflection: str) -> str:
     """Tool for strategic reflection on progress and decision-making.
 

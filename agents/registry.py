@@ -2,15 +2,19 @@
 
 Manages declarative sub-agent configurations and provides query interfaces
 for the orchestrator and router to discover available sub-agents and their
-capabilities.
+capabilities. Supports permission-based tool/skill filtering.
 """
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Callable
 
 from langchain_core.tools import BaseTool
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -26,18 +30,24 @@ class SubAgentConfig:
         system_prompt: System prompt template. May contain format placeholders
             (e.g. ``{date}``) that are filled at registration time.
         tools: List of LangChain tools this sub-agent is allowed to use.
+        skills: List of skill file paths this sub-agent is allowed to use.
         max_iterations: Maximum iterations this sub-agent may perform per task.
         enabled: Whether this sub-agent is currently active.
+        permissions_path: Path to the ``permissions.yaml`` for this agent.
+            If set, tools/skills will be filtered by the permission manager.
     """
 
     name: str
     description: str
     system_prompt: str
     tools: list[BaseTool | Callable[..., Any] | dict[str, Any]] = field(default_factory=list)
+    skills: list[str] = field(default_factory=list)
     max_iterations: int = 3
     enabled: bool = True
     model: str | None = None
     """Optional model override for this sub-agent (e.g. ``"claude-sonnet-4-5"`` or ``"openai:gpt-4o"``)."""
+    permissions_path: str | Path | None = None
+    """Path to the ``permissions.yaml`` for this agent. If set, tools are filtered by the permission manager."""
 
     # --- Computed properties ---
 
@@ -50,6 +60,8 @@ class SubAgentConfig:
             "system_prompt": self.system_prompt,
             "tools": self.tools,
         }
+        if self.skills:
+            d["skills"] = self.skills
         if self.model:
             d["model"] = self.model
         return d
@@ -61,9 +73,11 @@ class SubAgentConfig:
             description=self.description,
             system_prompt=self.system_prompt.format(**kwargs),
             tools=self.tools,
+            skills=self.skills,
             max_iterations=self.max_iterations,
             enabled=self.enabled,
             model=self.model,
+            permissions_path=self.permissions_path,
         )
 
 
@@ -140,3 +154,65 @@ class AgentRegistry:
         if not lines:
             return "No sub-agents are currently registered."
         return "Available sub-agents:\n" + "\n".join(lines)
+
+    def apply_permissions(self, permission_manager: Any) -> None:
+        """Apply permission filtering to all registered sub-agents.
+
+        For each registered agent that has a ``permissions_path`` configured,
+        loads its ``permissions.yaml`` and filters its ``tools`` list to only
+        include authorized tools.
+
+        Agents without a ``permissions_path`` are left unchanged (backward
+        compatible with the legacy mode).
+
+        Args:
+            permission_manager: A ``PermissionManager`` instance.
+        """
+        from agents.permissions import PermissionConfig
+
+        for agent in self.list_all_agents():
+            if not agent.permissions_path:
+                logger.debug(
+                    "Agent '%s' has no permissions_path, skipping permission filtering.",
+                    agent.name,
+                )
+                continue
+
+            perm_path = Path(agent.permissions_path)
+            if not perm_path.exists():
+                logger.warning(
+                    "Agent '%s': permissions file not found at '%s'. "
+                    "Falling back to unfiltered tools.",
+                    agent.name,
+                    perm_path,
+                )
+                continue
+
+            try:
+                config = permission_manager.load_from_yaml(
+                    agent_name=agent.name,
+                    yaml_path=perm_path,
+                )
+
+                # Replace tools with only the authorized ones
+                allowed_tools = permission_manager.get_allowed_tool_instances(agent.name)
+                agent.tools = allowed_tools
+
+                # Replace skills with only the authorized ones
+                allowed_skills = permission_manager.get_allowed_skill_paths(agent.name)
+                agent.skills = allowed_skills
+
+                logger.info(
+                    "Applied permissions for agent '%s': %d tools, %d skills authorized",
+                    agent.name,
+                    len(allowed_tools),
+                    len(allowed_skills),
+                )
+
+            except Exception as e:
+                logger.error(
+                    "Failed to apply permissions for agent '%s': %s. "
+                    "Falling back to unfiltered tools.",
+                    agent.name,
+                    e,
+                )

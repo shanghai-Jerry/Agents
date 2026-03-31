@@ -1,0 +1,12 @@
+# General Agent Permissions
+# ===================================
+# Whitelist of tools, skills, and groups this agent is authorized to use.
+# Default: no access. Only explicitly listed resources are permitted.
+
+permissions:
+  tools:
+    - think_tool              # Strategic reflection tool
+    - fetch_webpage_content   # Web page content fetching
+  skills: []
+  groups:
+    - core                   # Grant all tools in the "core" group
