@@ -9,7 +9,7 @@ from agents.resources import register_tool
 
 
 @register_tool(
-    group="web",
+    group="search",
     description="Fetch a webpage and convert its HTML content to Markdown.",
 )
 def fetch_webpage_content(url: str, timeout: float = 10.0) -> str:

@@ -4,9 +4,7 @@
 # Default: no access. Only explicitly listed resources are permitted.
 
 permissions:
-  tools:
-    - think_tool              # Strategic reflection tool
-    - fetch_webpage_content   # Web page content fetching
+  tools: []
   skills: []
   groups:
-    - core                   # Grant all tools in the "core" group
+    - core                   # think_tool

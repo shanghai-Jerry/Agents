@@ -4,12 +4,8 @@
 # Default: no access. Only explicitly listed resources are permitted.
 
 permissions:
-  tools:
-    - think_tool             # Strategic reflection tool
-    - sandbox_exec           # Execute commands in Modal sandbox
-    - sandbox_upload         # Upload files to Modal sandbox
-    - sandbox_download       # Download files from Modal sandbox
+  tools: []
   skills: []
   groups:
-    - core                   # Grant all tools in the "core" group
-    - code                   # Grant all tools in the "code" group
+    - core                   # think_tool
+    - code                   # sandbox_exec, sandbox_upload, sandbox_download

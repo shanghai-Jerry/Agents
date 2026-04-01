@@ -148,6 +148,37 @@ class ResourceRegistry:
         """Return tool names belonging to a specific group."""
         return list(self._tool_groups.get(group, set()))
 
+    def all_tool_instances(self) -> list[BaseTool]:
+        """Return all registered tool instances regardless of group.
+
+        Tools without an ``instance`` reference are skipped.
+
+        Returns:
+            A list of all ``BaseTool`` instances in the registry.
+        """
+        return [
+            meta.instance
+            for meta in self._tools.values()
+            if meta.instance is not None
+        ]
+
+    def tool_instances_by_group(self, group: str) -> list[BaseTool]:
+        """Return actual BaseTool instances for all tools in a group.
+
+        Tools without an ``instance`` reference are skipped.
+
+        Args:
+            group: The group name to filter by.
+
+        Returns:
+            A list of ``BaseTool`` instances in the specified group.
+        """
+        return [
+            meta.instance
+            for meta in self.list_tools_by_group(group)
+            if meta.instance is not None
+        ]
+
     # --- Skill operations ---
 
     def register_skill(self, meta: SkillMetadata) -> None:

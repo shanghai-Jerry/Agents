@@ -12,6 +12,7 @@ Usage:
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 from dotenv import load_dotenv
 
@@ -42,6 +43,15 @@ def _build_registry() -> AgentRegistry:
     4. Create a ``permissions.yaml`` in the subagent directory
     """
     from pathlib import Path as _Path
+
+    # --- Register all resources FIRST ---
+    # This must happen before create_*_subagent() calls so that
+    # get_default_tools() returns the complete set of tools.
+    import tools  # noqa: F401 — registers core tools via @register_tool
+    tools.import_optional_tools()  # registers tavily, sandbox, etc.
+
+    from skills import discover_skills
+    discover_skills()
 
     config = AgentConfig()
     registry = AgentRegistry()
@@ -109,20 +119,6 @@ def _build_registry() -> AgentRegistry:
             e,
         )
 
-    # --- Register resources ---
-    # Import shared tools to trigger @register_tool decorators
-    import tools  # noqa: F401
-
-    # Trigger optional tool registrations (non-blocking on missing deps)
-    try:
-        import tools.sandbox  # noqa: F401 — registers sandbox_exec/upload/download
-    except ImportError:
-        pass
-
-    # Auto-discover and register skills from skills/ sub-directories
-    from skills import discover_skills
-    discover_skills()
-
     # --- Apply permissions ---
     permission_manager = PermissionManager(registry=resource_registry)
     registry.apply_permissions(permission_manager)
@@ -133,10 +129,26 @@ def _build_registry() -> AgentRegistry:
 # Build the registry (module-level, cached)
 _registry = _build_registry()
 
+# --- Load orchestrator skill permissions ---
+_orchestrator_perm_path = Path(__file__).parent / "agents" / "permissions.yaml"
+_orchestrator_skills: list[str] | None = None
+
+if _orchestrator_perm_path.exists():
+    _orch_pm = PermissionManager(registry=resource_registry)
+    _orch_pm.load_from_yaml("orchestrator", _orchestrator_perm_path)
+    _orchestrator_skills = _orch_pm.get_allowed_skill_paths("orchestrator")
+    if _orchestrator_skills:
+        logger.info(
+            "Orchestrator authorized skills (%d): %s",
+            len(_orchestrator_skills),
+            ", ".join(s for s in _orchestrator_skills),
+        )
+
 # Create the orchestrator agent
 agent = create_orchestrator(
     config=AgentConfig(),
     registry=_registry,
+    skills=_orchestrator_skills,
 )
 
 
