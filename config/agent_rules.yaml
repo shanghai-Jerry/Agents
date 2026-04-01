@@ -17,7 +17,11 @@
 #     agent: researcher
 #     description: "Route research and search queries"
 
-rules: []
+rules:
+  # --- Coding tasks -> coder sub-agent ---
+  - patterns: ["写代码|编程|code|develop|implement|写一个.*函数|写一个.*脚本|帮我.*代码|debug|调试"]
+    agent: coder
+    description: "Route coding and development tasks"
 
 # ===================================
 # Example rules (uncomment and customize as needed):

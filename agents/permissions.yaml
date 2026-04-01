@@ -1,0 +1,13 @@
+# Orchestrator (Main Agent) Permissions
+# ===================================
+# Whitelist of skills and groups this agent is authorized to use.
+# Default: no access. Only explicitly listed resources are permitted.
+#
+# Note: The orchestrator's tools are managed via `extra_tools` in
+# create_orchestrator(), not through the permissions whitelist.
+
+permissions:
+  tools:
+    - fetch_webpage_content  # Fetch webpage content
+  skills: []
+  groups: []

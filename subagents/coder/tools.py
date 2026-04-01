@@ -1,4 +1,4 @@
-"""Research sub-agent tools.
+"""Tools for the coder sub-agent.
 
 Returns all registered tools from the global ResourceRegistry.  The actual
 capability boundary is defined solely by ``permissions.yaml`` — the permission

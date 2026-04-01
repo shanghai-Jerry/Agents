@@ -1,0 +1,10 @@
+# General Agent Permissions
+# ===================================
+# Whitelist of tools, skills, and groups this agent is authorized to use.
+# Default: no access. Only explicitly listed resources are permitted.
+
+permissions:
+  tools: []
+  skills: []
+  groups:
+    - core                   # think_tool

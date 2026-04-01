@@ -11,9 +11,12 @@
             --bg-tertiary: #16213e;
             --text-primary: #e0e0e0;
             --text-secondary: #a0a0a0;
+            --text-dim: #8b8ba0;
             --accent: #0f3460;
             --accent-light: #533483;
+            --accent-gradient: linear-gradient(135deg, #533483, #448aff);
             --border: #2a2a3e;
+            --border-light: #3a3a5e;
             --success: #00c853;
             --warning: #ffab00;
             --error: #ff5252;
@@ -22,6 +25,11 @@
             --ai-bubble: #1a1a2e;
             --tool-bg: #0d2137;
             --subagent-bg: #1b0d2e;
+            --thinking-bg: rgba(83, 52, 131, 0.08);
+            --thinking-border: rgba(83, 52, 131, 0.4);
+            --thinking-glow: rgba(83, 52, 131, 0.15);
+            --timeline-color: #3a3a5e;
+            --step-bg: #12121a;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -35,7 +43,7 @@
             flex-direction: column;
         }
 
-        /* Header */
+        /* ========== Header ========== */
         .header {
             background: var(--bg-secondary);
             border-bottom: 1px solid var(--border);
@@ -75,7 +83,7 @@
             50% { opacity: 0.4; }
         }
 
-        /* Chat Container */
+        /* ========== Chat Container ========== */
         .chat-container {
             flex: 1;
             overflow-y: auto;
@@ -83,14 +91,12 @@
             scroll-behavior: smooth;
         }
 
-        /* Messages */
+        /* ========== Messages ========== */
         .message {
             margin-bottom: 16px;
             max-width: 800px;
         }
-        .message.user {
-            margin-left: auto;
-        }
+        .message.user { margin-left: auto; }
         .message-bubble {
             padding: 12px 16px;
             border-radius: 12px;
@@ -115,83 +121,333 @@
         }
         .message.user .message-time { text-align: right; }
 
-        /* Tool Calls */
-        .tool-call {
-            background: var(--tool-bg);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            margin: 8px 0;
-            padding: 8px 12px;
-            font-size: 13px;
-        }
-        .tool-call .tool-name {
-            color: var(--info);
-            font-weight: 600;
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        .tool-call .tool-args {
-            color: var(--text-secondary);
-            font-family: 'SF Mono', 'Fira Code', monospace;
-            font-size: 12px;
-            margin-top: 4px;
-            max-height: 60px;
+        /* ========== Process Panel (collapsible thinking/steps container) ========== */
+        .process-panel {
+            background: var(--thinking-bg);
+            border: 1px solid var(--thinking-border);
+            border-radius: 10px;
+            margin-bottom: 10px;
             overflow: hidden;
-            text-overflow: ellipsis;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border-left: 3px solid;
+            border-left-color: var(--accent-light);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        .tool-call .tool-result {
-            color: var(--text-secondary);
-            font-size: 12px;
-            margin-top: 6px;
-            max-height: 120px;
-            overflow-y: auto;
-            border-top: 1px solid var(--border);
-            padding-top: 6px;
-            white-space: pre-wrap;
+        .process-panel.collapsed .process-body {
+            max-height: 0 !important;
+            opacity: 0;
+            padding-top: 0;
+            padding-bottom: 0;
+            margin: 0;
+        }
+        .process-panel.collapsed .process-header .process-chevron {
+            transform: rotate(-90deg);
+        }
+        .process-panel.completed {
+            border-left-color: var(--info);
+            border-color: rgba(68, 138, 255, 0.2);
+            background: rgba(68, 138, 255, 0.04);
+        }
+        .process-panel.completed .process-header .process-label {
+            color: var(--info);
         }
 
-        /* Sub-agent Cards */
-        .subagent-card {
-            background: var(--subagent-bg);
-            border: 1px solid var(--accent-light);
-            border-radius: 8px;
-            margin: 8px 0;
-            padding: 12px 16px;
-        }
-        .subagent-card .subagent-header {
+        .process-header {
             display: flex;
             align-items: center;
             gap: 8px;
-            margin-bottom: 8px;
+            padding: 8px 12px;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.2s;
         }
-        .subagent-card .subagent-badge {
+        .process-header:hover { background: rgba(255, 255, 255, 0.03); }
+
+        .process-indicator {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .process-indicator .indicator-dot {
+            width: 6px; height: 6px;
+            border-radius: 50%;
             background: var(--accent-light);
-            color: white;
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: 600;
+            animation: think-pulse 1.2s ease-in-out infinite;
         }
-        .subagent-card .subagent-name {
-            font-size: 13px;
+        .process-indicator .indicator-dot:nth-child(2) { animation-delay: 0.2s; }
+        .process-indicator .indicator-dot:nth-child(3) { animation-delay: 0.4s; }
+        .process-panel.completed .process-indicator .indicator-dot {
+            animation: none;
+            background: var(--info);
+        }
+        .process-panel.completed .process-indicator .indicator-dot:not(:first-child) { display: none; }
+        .process-panel.completed .process-indicator .indicator-dot:first-child {
+            width: 10px; height: 10px;
+            background: var(--info);
+            border-radius: 2px;
+            box-shadow: 1px 1px 0 0 #fff;
+        }
+        @keyframes think-pulse {
+            0%, 100% { opacity: 0.3; transform: scale(0.8); }
+            50% { opacity: 1; transform: scale(1.1); }
+        }
+
+        .process-label {
+            font-size: 12px;
             font-weight: 500;
             color: var(--accent-light);
+            letter-spacing: 0.3px;
+            transition: color 0.3s;
         }
-        .subagent-card .subagent-content {
+        .process-summary {
+            font-size: 11px;
+            color: var(--text-dim);
+            max-width: 400px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex: 1;
+        }
+        .process-chevron {
+            font-size: 10px;
+            color: var(--text-dim);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .process-body {
+            max-height: 600px;
+            overflow-y: auto;
+            padding: 0 12px 10px;
+            transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+                        opacity 0.25s ease,
+                        padding 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .process-body::-webkit-scrollbar { width: 4px; }
+        .process-body::-webkit-scrollbar-track { background: transparent; }
+        .process-body::-webkit-scrollbar-thumb { background: rgba(83, 52, 131, 0.3); border-radius: 2px; }
+
+        /* ========== Step Timeline ========== */
+        .step-timeline {
+            position: relative;
+            padding-left: 24px;
+        }
+        /* Vertical timeline line */
+        .step-timeline::before {
+            content: '';
+            position: absolute;
+            left: 7px;
+            top: 4px;
+            bottom: 4px;
+            width: 2px;
+            background: var(--timeline-color);
+            border-radius: 1px;
+        }
+        .step-timeline:empty::before { display: none; }
+
+        .step-item {
+            position: relative;
+            margin-bottom: 8px;
+            animation: step-in 0.25s ease-out;
+        }
+        .step-item:last-child { margin-bottom: 0; }
+        @keyframes step-in {
+            from { opacity: 0; transform: translateX(-8px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        /* Timeline node dot */
+        .step-dot {
+            position: absolute;
+            left: -24px;
+            top: 10px;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--step-bg);
+            border: 2px solid var(--timeline-color);
+            z-index: 1;
+            transition: all 0.3s;
+        }
+        .step-item.completed .step-dot {
+            background: var(--success);
+            border-color: var(--success);
+        }
+        .step-item.completed .step-dot::after {
+            content: '';
+            position: absolute;
+            top: 2px; left: 2px;
+            width: 6px; height: 6px;
+            border-radius: 1px;
+            background: white;
+        }
+        /* Tool step: blue dot */
+        .step-item.tool-step .step-dot {
+            border-color: var(--info);
+        }
+        .step-item.tool-step.completed .step-dot {
+            background: var(--info);
+            border-color: var(--info);
+        }
+        /* Agent step: purple dot */
+        .step-item.agent-step .step-dot {
+            border-color: var(--accent-light);
+            background: var(--accent-light);
+        }
+        .step-item.agent-step.completed .step-dot {
+            background: var(--success);
+            border-color: var(--success);
+        }
+        /* Thinking step: dim dot */
+        .step-item.thinking-step .step-dot {
+            border-color: var(--text-dim);
+        }
+
+        /* Step card body */
+        .step-card {
+            background: var(--step-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            transition: border-color 0.3s;
+        }
+        .step-item.completed .step-card {
+            border-color: var(--border-light);
+        }
+
+        .step-card-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            font-size: 12px;
+            cursor: default;
+            transition: background 0.2s;
+        }
+        .step-card-header:hover { background: rgba(255, 255, 255, 0.02); }
+
+        .step-icon {
+            flex-shrink: 0;
+            font-size: 13px;
+            opacity: 0.8;
+        }
+        .step-title {
+            font-weight: 600;
+            color: var(--text-primary);
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .step-title .step-type-badge {
+            display: inline-block;
+            padding: 1px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-right: 6px;
+        }
+        .step-type-badge.tool { background: rgba(68, 138, 255, 0.15); color: var(--info); }
+        .step-type-badge.agent { background: rgba(83, 52, 131, 0.2); color: var(--accent-light); }
+        .step-type-badge.think { background: rgba(255, 171, 0, 0.12); color: var(--warning); }
+
+        .step-status-icon {
+            font-size: 10px;
+            color: var(--warning);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .step-item.completed .step-status-icon {
+            opacity: 1;
+            color: var(--success);
+        }
+
+        /* Pulsing indicator while step is running */
+        .step-card.running {
+            border-color: var(--border-light);
+        }
+        .step-card.running .step-status-icon {
+            opacity: 1;
+            animation: pulse 1.2s ease-in-out infinite;
+        }
+
+        .step-card-body {
+            padding: 0 12px 8px;
             font-size: 13px;
             color: var(--text-secondary);
-            line-height: 1.5;
+            line-height: 1.6;
             white-space: pre-wrap;
+            word-break: break-word;
+            max-height: 200px;
+            overflow-y: auto;
         }
-        .subagent-card .subagent-status {
-            font-size: 11px;
-            color: var(--warning);
+        .step-card-body::-webkit-scrollbar { width: 3px; }
+        .step-card-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+        /* Tool args styling */
+        .step-args {
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 12px;
+            color: var(--text-dim);
+            max-height: 60px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            border-top: 1px solid var(--border);
+            padding-top: 6px;
             margin-top: 6px;
         }
 
-        /* Thinking indicator */
-        .thinking {
+        /* Tool result */
+        .step-result {
+            font-size: 12px;
+            color: var(--text-secondary);
+            border-top: 1px solid var(--border);
+            padding-top: 6px;
+            margin-top: 6px;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+
+        /* ========== Sub-agent Content Area (nested inside agent step) ========== */
+        .agent-content {
+            padding: 0 12px 8px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .agent-content::-webkit-scrollbar { width: 3px; }
+        .agent-content::-webkit-scrollbar-thumb { background: var(--accent-light); border-radius: 2px; }
+
+        .agent-status-bar {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 12px 8px;
+            font-size: 11px;
+            color: var(--warning);
+        }
+        .agent-status-bar .status-dot {
+            width: 5px; height: 5px;
+            border-radius: 50%;
+            background: var(--warning);
+            animation: pulse 1s infinite;
+        }
+        .step-item.completed .agent-status-bar {
+            color: var(--success);
+        }
+        .step-item.completed .agent-status-bar .status-dot {
+            background: var(--success);
+            animation: none;
+        }
+
+        /* ========== Thinking Loading (fallback) ========== */
+        .thinking-loading {
             display: flex;
             align-items: center;
             gap: 8px;
@@ -199,23 +455,22 @@
             color: var(--text-secondary);
             font-size: 13px;
         }
-        .thinking .dots span {
+        .thinking-loading .dots span {
             display: inline-block;
             width: 4px; height: 4px;
             background: var(--text-secondary);
             border-radius: 50%;
             animation: dot-bounce 1.4s infinite ease-in-out both;
         }
-        .thinking .dots span:nth-child(1) { animation-delay: 0s; }
-        .thinking .dots span:nth-child(2) { animation-delay: 0.2s; }
-        .thinking .dots span:nth-child(3) { animation-delay: 0.4s; }
-
+        .thinking-loading .dots span:nth-child(1) { animation-delay: 0s; }
+        .thinking-loading .dots span:nth-child(2) { animation-delay: 0.2s; }
+        .thinking-loading .dots span:nth-child(3) { animation-delay: 0.4s; }
         @keyframes dot-bounce {
             0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
             40% { transform: scale(1); opacity: 1; }
         }
 
-        /* Input Area */
+        /* ========== Input Area ========== */
         .input-area {
             padding: 16px 24px;
             background: var(--bg-secondary);
@@ -245,12 +500,8 @@
             line-height: 1.5;
             transition: border-color 0.2s;
         }
-        .input-wrapper textarea:focus {
-            border-color: var(--accent-light);
-        }
-        .input-wrapper textarea::placeholder {
-            color: var(--text-secondary);
-        }
+        .input-wrapper textarea:focus { border-color: var(--accent-light); }
+        .input-wrapper textarea::placeholder { color: var(--text-secondary); }
         .input-wrapper button {
             background: linear-gradient(135deg, var(--accent), var(--accent-light));
             border: none;
@@ -264,18 +515,15 @@
         }
         .input-wrapper button:hover { opacity: 0.9; }
         .input-wrapper button:active { transform: scale(0.98); }
-        .input-wrapper button:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
+        .input-wrapper button:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        /* Scrollbar */
+        /* ========== Scrollbar ========== */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
 
-        /* Code blocks */
+        /* ========== Code blocks ========== */
         .message-bubble code {
             background: rgba(255,255,255,0.1);
             padding: 1px 6px;
@@ -291,12 +539,9 @@
             margin: 8px 0;
             overflow-x: auto;
         }
-        .message-bubble pre code {
-            background: none;
-            padding: 0;
-        }
+        .message-bubble pre code { background: none; padding: 0; }
 
-        /* Error */
+        /* ========== Error ========== */
         .error-banner {
             background: rgba(255, 82, 82, 0.1);
             border: 1px solid var(--error);
@@ -307,7 +552,7 @@
             font-size: 13px;
         }
 
-        /* New chat button */
+        /* ========== New chat button ========== */
         .new-chat-btn {
             background: none;
             border: 1px solid var(--border);
@@ -318,10 +563,10 @@
             cursor: pointer;
             transition: all 0.2s;
         }
-        .new-chat-btn:hover {
-            border-color: var(--text-secondary);
-            color: var(--text-primary);
-        }
+        .new-chat-btn:hover { border-color: var(--text-secondary); color: var(--text-primary); }
+
+        /* ========== Reply text area ========== */
+        .reply-text { line-height: 1.6; }
     </style>
 </head>
 <body>
@@ -367,7 +612,6 @@
         let threadId = generateThreadId();
         let isStreaming = false;
 
-        // Initialize
         fetchConfig();
         setupInput();
 
@@ -419,53 +663,228 @@
             return msg.querySelector('.message-bubble');
         }
 
-        function appendText(bubble, text) {
-            if (bubble.querySelector('.thinking')) return;
-            bubble.textContent += text;
+        // ========== Process Panel (replaces old thinking-panel) ==========
+
+        /**
+         * Get or create the process panel inside a bubble.
+         * Contains the step timeline showing the agent's thinking process.
+         */
+        function getOrCreateProcessPanel(bubble) {
+            let panel = bubble.querySelector('.process-panel');
+            if (panel) return panel;
+
+            panel = document.createElement('div');
+            panel.className = 'process-panel';
+            panel.innerHTML = `
+                <div class="process-header" onclick="toggleProcessPanel(this.parentElement)">
+                    <div class="process-indicator">
+                        <span class="indicator-dot"></span>
+                        <span class="indicator-dot"></span>
+                        <span class="indicator-dot"></span>
+                    </div>
+                    <span class="process-label">思考过程</span>
+                    <span class="process-summary"></span>
+                    <span class="process-chevron">▼</span>
+                </div>
+                <div class="process-body">
+                    <div class="step-timeline"></div>
+                </div>
+            `;
+            bubble.prepend(panel);
+            return panel;
+        }
+
+        function getTimeline(bubble) {
+            const panel = getOrCreateProcessPanel(bubble);
+            return panel.querySelector('.step-timeline');
+        }
+
+        function completeProcessPanel(bubble) {
+            const panel = bubble.querySelector('.process-panel');
+            if (!panel) return;
+
+            panel.classList.add('completed');
+            const label = panel.querySelector('.process-label');
+            label.textContent = '思考过程';
+
+            // Build summary from step titles
+            const timeline = panel.querySelector('.step-timeline');
+            const steps = timeline.querySelectorAll('.step-item');
+            const stepCount = steps.length;
+            const agentCount = timeline.querySelectorAll('.step-item.agent-step').length;
+            const toolCount = timeline.querySelectorAll('.step-item.tool-step').length;
+            let summaryParts = [];
+            if (agentCount > 0) summaryParts.push(`${agentCount} 个子 Agent`);
+            if (toolCount > 0) summaryParts.push(`${toolCount} 个工具调用`);
+            if (summaryParts.length === 0) summaryParts.push(`${stepCount} 个步骤`);
+            const summaryEl = panel.querySelector('.process-summary');
+            summaryEl.textContent = summaryParts.join('，');
+
+            // Auto-collapse if there is reply text
+            const replyText = bubble.querySelector('.reply-text');
+            if (replyText && replyText.textContent.trim()) {
+                panel.classList.add('collapsed');
+            }
+        }
+
+        function toggleProcessPanel(panel) {
+            panel.classList.toggle('collapsed');
+        }
+
+        // ========== Step Creation ==========
+
+        function addStep(bubble, type, title) {
+            removeThinkingLoading(bubble);
+            const timeline = getTimeline(bubble);
+            const el = document.createElement('div');
+            el.className = `step-item ${type}-step`;
+            const icon = type === 'agent' ? '🤖' : type === 'tool' ? '🔧' : '💭';
+            const badgeClass = type === 'agent' ? 'agent' : type === 'tool' ? 'tool' : 'think';
+            el.innerHTML = `
+                <div class="step-dot"></div>
+                <div class="step-card running">
+                    <div class="step-card-header">
+                        <span class="step-icon">${icon}</span>
+                        <span class="step-title">
+                            <span class="step-type-badge ${badgeClass}">${type === 'agent' ? 'Agent' : type === 'tool' ? 'Tool' : 'Think'}</span>
+                            ${escapeHtml(title)}
+                        </span>
+                        <span class="step-status-icon">⏳</span>
+                    </div>
+                </div>
+            `;
+            timeline.appendChild(el);
+            scrollToBottom();
+            return el;
+        }
+
+        function completeStep(stepEl) {
+            if (!stepEl) return;
+            stepEl.classList.add('completed');
+            const card = stepEl.querySelector('.step-card');
+            if (card) card.classList.remove('running');
+            const statusIcon = stepEl.querySelector('.step-status-icon');
+            if (statusIcon) statusIcon.textContent = '✓';
+        }
+
+        function getStepBody(stepEl) {
+            let body = stepEl.querySelector('.step-card-body');
+            if (!body) {
+                body = document.createElement('div');
+                body.className = 'step-card-body';
+                stepEl.querySelector('.step-card').appendChild(body);
+            }
+            return body;
+        }
+
+        function setStepResult(stepEl, result) {
+            let resultEl = stepEl.querySelector('.step-result');
+            if (!resultEl) {
+                resultEl = document.createElement('div');
+                resultEl.className = 'step-result';
+                stepEl.querySelector('.step-card').appendChild(resultEl);
+            }
+            resultEl.textContent = result;
+        }
+
+        function setStepArgs(stepEl, args) {
+            let argsEl = stepEl.querySelector('.step-args');
+            if (!argsEl) {
+                argsEl = document.createElement('div');
+                argsEl.className = 'step-args';
+                stepEl.querySelector('.step-card').appendChild(argsEl);
+            }
+            argsEl.textContent = args;
+        }
+
+        // ========== Agent Step (sub-agent with streaming content) ==========
+
+        function addAgentStep(bubble, name, description) {
+            const stepEl = addStep(bubble, 'agent', name || 'Sub-Agent');
+
+            // Show description as subtitle
+            if (description) {
+                const body = getStepBody(stepEl);
+                body.textContent = description;
+            }
+
+            // Add streaming content area
+            const contentEl = document.createElement('div');
+            contentEl.className = 'agent-content';
+            if (!description) contentEl.textContent = '开始执行...';
+            stepEl.querySelector('.step-card').appendChild(contentEl);
+
+            // Add status bar
+            const statusEl = document.createElement('div');
+            statusEl.className = 'agent-status-bar';
+            statusEl.innerHTML = '<span class="status-dot"></span><span>执行中...</span>';
+            stepEl.querySelector('.step-card').appendChild(statusEl);
+
+            scrollToBottom();
+            return { stepEl, contentEl, statusEl };
+        }
+
+        function appendAgentContent(agentState, text) {
+            if (!agentState) return;
+            const contentEl = agentState.contentEl;
+            // Remove placeholder
+            if (contentEl.textContent === '开始执行...') contentEl.textContent = '';
+            contentEl.textContent += text;
+            // Auto-scroll inside the content area
+            requestAnimationFrame(() => { contentEl.scrollTop = contentEl.scrollHeight; });
             scrollToBottom();
         }
 
-        function showThinking(bubble) {
-            bubble.innerHTML = '<div class="thinking"><span>Thinking</span><div class="dots"><span></span><span></span><span></span></div></div>';
+        function completeAgentStep(agentState) {
+            if (!agentState) return;
+            completeStep(agentState.stepEl);
+            const statusSpan = agentState.statusEl.querySelector('span:last-child');
+            if (statusSpan) statusSpan.textContent = '已完成';
         }
 
-        function removeThinking(bubble) {
-            const thinking = bubble.querySelector('.thinking');
-            if (thinking) thinking.remove();
-        }
+        // ========== Fallback Thinking Indicator ==========
 
-        function addToolCall(bubble, toolName, args) {
-            removeThinking(bubble);
+        function showThinkingLoading(bubble) {
+            if (bubble.querySelector('.process-panel')) return;
             const el = document.createElement('div');
-            el.className = 'tool-call';
-            el.innerHTML = `
-                <div class="tool-name">🔧 ${escapeHtml(toolName)}</div>
-                ${args ? `<div class="tool-args">${escapeHtml(args)}</div>` : ''}
-                <div class="tool-result">Running...</div>`;
-            bubble.appendChild(el);
-            return el.querySelector('.tool-result');
+            el.className = 'thinking-loading';
+            el.innerHTML = '<span>Thinking</span><div class="dots"><span></span><span></span><span></span></div>';
+            bubble.prepend(el);
         }
 
-        function addSubagentCard(bubble, name, content) {
-            removeThinking(bubble);
-            const el = document.createElement('div');
-            el.className = 'subagent-card';
-            el.innerHTML = `
-                <div class="subagent-header">
-                    <span class="subagent-badge">Sub-Agent</span>
-                    <span class="subagent-name">${escapeHtml(name)}</span>
-                </div>
-                <div class="subagent-content">${escapeHtml(content)}</div>
-                <div class="subagent-status">Processing...</div>`;
-            bubble.appendChild(el);
-            return el.querySelector('.subagent-status');
+        function removeThinkingLoading(bubble) {
+            const loading = bubble.querySelector('.thinking-loading');
+            if (loading) loading.remove();
         }
+
+        // ========== Reply Text ==========
+
+        function appendReplyText(bubble, text) {
+            const panel = bubble.querySelector('.process-panel');
+            if (panel && !panel.classList.contains('completed')) {
+                completeProcessPanel(bubble);
+            }
+            removeThinkingLoading(bubble);
+
+            let replyEl = bubble.querySelector('.reply-text');
+            if (!replyEl) {
+                replyEl = document.createElement('div');
+                replyEl.className = 'reply-text';
+                bubble.appendChild(replyEl);
+            }
+            replyEl.textContent += text;
+            scrollToBottom();
+        }
+
+        // ========== Utilities ==========
 
         function escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
         }
+
+        // ========== Send Message ==========
 
         async function sendMessage() {
             const text = userInput.value.trim();
@@ -476,12 +895,9 @@
             userInput.value = '';
             userInput.style.height = 'auto';
 
-            // Show user message
             createMessageEl('user').textContent = text;
-
-            // Create assistant bubble
             const aiBubble = createMessageEl('assistant');
-            showThinking(aiBubble);
+            showThinkingLoading(aiBubble);
             setStreaming(true);
 
             try {
@@ -491,17 +907,16 @@
                     body: JSON.stringify({ message: text, thread_id: threadId }),
                 });
 
-                if (!resp.ok) {
-                    throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
-                }
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
 
                 const reader = resp.body.getReader();
                 const decoder = new TextDecoder();
                 let buffer = '';
 
-                // Track current tool/subagent elements
-                let currentToolResult = null;
-                let currentSubagentStatus = null;
+                // State tracking
+                let currentToolStep = null;       // current tool step-item element
+                let currentAgentState = null;     // { stepEl, contentEl, statusEl }
+                let pendingTools = 0;
 
                 while (true) {
                     const { done, value } = await reader.read();
@@ -521,37 +936,77 @@
                             const event = JSON.parse(data);
 
                             switch (event.type) {
+                                case 'thinking':
+                                    appendThinking(aiBubble, event.content);
+                                    break;
+
                                 case 'token':
-                                    removeThinking(aiBubble);
-                                    appendText(aiBubble, event.content);
-                                    break;
-
-                                case 'tool_call':
-                                    removeThinking(aiBubble);
-                                    currentToolResult = addToolCall(
-                                        aiBubble, event.data.tool, event.data.args
-                                    );
-                                    break;
-
-                                case 'tool_result':
-                                    if (currentToolResult) {
-                                        currentToolResult.textContent = event.content;
-                                        currentToolResult = null;
+                                    removeThinkingLoading(aiBubble);
+                                    if (pendingTools > 0) {
+                                        appendThinking(aiBubble, event.content);
+                                    } else {
+                                        appendReplyText(aiBubble, event.content);
                                     }
                                     break;
 
-                                case 'subagent':
-                                    const subagentName = event.data.name || 'Sub-Agent';
-                                    currentSubagentStatus = addSubagentCard(
-                                        aiBubble, subagentName, event.content || 'Starting...'
+                                case 'tool_call':
+                                    removeThinkingLoading(aiBubble);
+                                    pendingTools++;
+                                    currentAgentState = null;  // tool call exits agent context
+                                    const toolName = event.data.tool || 'unknown';
+                                    currentToolStep = addStep(aiBubble, 'tool', toolName);
+                                    if (event.data.args) setStepArgs(currentToolStep, event.data.args);
+                                    break;
+
+                                case 'tool_result':
+                                    if (currentToolStep) {
+                                        setStepResult(currentToolStep, event.content);
+                                        completeStep(currentToolStep);
+                                        currentToolStep = null;
+                                    }
+                                    pendingTools = Math.max(0, pendingTools - 1);
+                                    break;
+
+                                case 'agent_plan':
+                                    removeThinkingLoading(aiBubble);
+                                    pendingTools++;
+                                    const agentName = event.data.name || 'Sub-Agent';
+                                    currentAgentState = addAgentStep(
+                                        aiBubble, agentName, event.data.description
                                     );
                                     break;
 
+                                case 'agent_token':
+                                    // Append to current sub-agent's content area
+                                    if (currentAgentState) {
+                                        appendAgentContent(currentAgentState, event.content);
+                                    }
+                                    break;
+
+                                case 'agent_result':
+                                    if (currentAgentState) {
+                                        completeAgentStep(currentAgentState);
+                                        currentAgentState = null;
+                                    }
+                                    pendingTools = Math.max(0, pendingTools - 1);
+                                    break;
+
                                 case 'done':
+                                    pendingTools = 0;
+                                    // Complete any pending steps
+                                    const pendingSteps = aiBubble.querySelectorAll('.step-item:not(.completed)');
+                                    pendingSteps.forEach(s => {
+                                        completeStep(s);
+                                        const status = s.querySelector('.agent-status-bar span:last-child');
+                                        if (status) status.textContent = '已完成';
+                                    });
+                                    completeProcessPanel(aiBubble);
                                     break;
 
                                 case 'error':
-                                    removeThinking(aiBubble);
+                                    pendingTools = 0;
+                                    removeThinkingLoading(aiBubble);
+                                    completeProcessPanel(aiBubble);
                                     const errEl = document.createElement('div');
                                     errEl.className = 'error-banner';
                                     errEl.textContent = `Error: ${event.content}`;
@@ -564,7 +1019,8 @@
                     }
                 }
             } catch (err) {
-                removeThinking(aiBubble);
+                removeThinkingLoading(aiBubble);
+                completeProcessPanel(aiBubble);
                 const errEl = document.createElement('div');
                 errEl.className = 'error-banner';
                 errEl.textContent = `Connection error: ${err.message}`;
@@ -575,6 +1031,38 @@
             isStreaming = false;
             sendBtn.disabled = false;
             userInput.focus();
+        }
+
+        // ========== Thinking fallback (appends to process panel) ==========
+
+        function appendThinking(bubble, text) {
+            const timeline = getTimeline(bubble);
+
+            // Try to append to the last step's body (reuse existing step context)
+            const steps = timeline.querySelectorAll('.step-item');
+            let targetBody = null;
+            if (steps.length > 0) {
+                const lastStep = steps[steps.length - 1];
+                // Append to thinking steps, or to steps that are still running
+                // (e.g. an agent step that hasn't gotten its own content yet)
+                if (lastStep.classList.contains('thinking-step') || !lastStep.classList.contains('completed')) {
+                    targetBody = lastStep.querySelector('.step-card-body') || lastStep.querySelector('.agent-content');
+                }
+            }
+
+            // If no suitable step, create a new thinking step
+            if (!targetBody) {
+                const stepEl = addStep(bubble, 'thinking', '思考');
+                targetBody = getStepBody(stepEl);
+            }
+
+            targetBody.textContent += text;
+
+            // Auto-scroll the step body
+            requestAnimationFrame(() => {
+                targetBody.scrollTop = targetBody.scrollHeight;
+            });
+            scrollToBottom();
         }
 
         function setStreaming(streaming) {

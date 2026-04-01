@@ -5,12 +5,11 @@ and follows a structured research methodology.
 """
 
 from subagents.researcher.prompts import RESEARCHER_INSTRUCTIONS
-from subagents.researcher.tools import tavily_search, think_tool
+from subagents.researcher.tools import get_default_tools
 
 __all__ = [
     "RESEARCHER_INSTRUCTIONS",
-    "tavily_search",
-    "think_tool",
+    "get_default_tools",
 ]
 
 
@@ -45,7 +44,7 @@ def create_researcher_subagent(
             "Only give this researcher one topic at a time."
         ),
         "system_prompt": RESEARCHER_INSTRUCTIONS.format(date=current_date),
-        "tools": [tavily_search, think_tool],
+        "tools": get_default_tools(),
     }
 
     if model:

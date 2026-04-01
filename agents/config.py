@@ -73,6 +73,11 @@ class AgentConfig:
     )
     """Model identifier for the research sub-agent."""
 
+    coder_model: str = field(
+        default_factory=lambda: resolve_model(os.getenv("CODER_MODEL", "claude-sonnet-4-5"))
+    )
+    """Model identifier for the coder sub-agent. Supports aliases like ``claude-sonnet-4-5``."""
+
     fallback_model: str = field(
         default_factory=lambda: resolve_model(os.getenv("FALLBACK_MODEL", "gpt-4o-mini"))
     )

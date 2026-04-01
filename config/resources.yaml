@@ -1,0 +1,36 @@
+# Global Resource Definitions
+# ===================================
+# Defines tool/skill groups and their descriptions.
+# Groups are used in subagent permissions.yaml for batch authorization.
+#
+# To add a new group:
+#   - Add an entry under `tool_groups:` or `skill_groups:`
+#   - Reference it in subagent permissions via `groups: [group_name]`
+
+tool_groups:
+  core:
+    name: 基础能力
+    description: 所有 agent 共享的基础工具
+  search:
+    name: 搜索能力
+    description: 搜索和信息检索工具
+  web:
+    name: 网页操作
+    description: 网页内容获取和处理工具
+  code:
+    name: 代码能力
+    description: 代码生成、编辑和执行工具
+  data_analysis:
+    name: 数据分析
+    description: 数据处理和可视化工具
+
+skill_groups:
+  research:
+    name: 研究能力
+    description: 深度研究和分析技能
+  writing:
+    name: 写作能力
+    description: 文档和内容创作技能
+  coding:
+    name: 编程能力
+    description: 软件开发相关技能

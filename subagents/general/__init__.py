@@ -5,11 +5,11 @@ Serves as the default fallback when no specialized sub-agent is available.
 """
 
 from subagents.general.prompts import GENERAL_INSTRUCTIONS
-from subagents.general.tools import think_tool
+from subagents.general.tools import get_default_tools
 
 __all__ = [
     "GENERAL_INSTRUCTIONS",
-    "think_tool",
+    "get_default_tools",
 ]
 
 
@@ -20,15 +20,17 @@ def create_general_subagent(tools: list | None = None) -> dict:
     ``subagents`` parameter.
 
     Args:
-        tools: Additional tools beyond the default ``think_tool``.
-            If ``None``, only ``think_tool`` is included.
+        tools: Additional tools beyond the defaults.
+            If ``None``, uses the default tool set from ResourceRegistry.
+            Note: The permission system will further filter this list based
+            on ``permissions.yaml``.
 
     Returns:
         A dictionary with ``name``, ``description``, ``system_prompt``, and ``tools``.
     """
     from datetime import datetime
 
-    all_tools = [think_tool]
+    all_tools = get_default_tools()
     if tools:
         all_tools.extend(tools)
 
