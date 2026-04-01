@@ -153,12 +153,12 @@ else:
 # SkillsMiddleware expects POSIX directory paths relative to the backend root.
 # We use FilesystemBackend(root_dir=project_root) so that "skills/" resolves
 # to the project's skills/ directory on disk.
-_filesystem_backend = FilesystemBackend(root_dir=_project_root, virtual_mode=False)
+_config = AgentConfig()
+_filesystem_backend = FilesystemBackend(root_dir=_project_root, virtual_mode=_config.sandbox_enabled)
 _skill_sources: list[str] | None = ["skills/"] if _allowed_skill_names is not None else None
 
 # --- Build backend (FilesystemBackend or CompositeBackend) ---
 # --- Build memory sources and store ---
-_config = AgentConfig()
 
 _memory_sources: list[str] | None = None
 _store = None

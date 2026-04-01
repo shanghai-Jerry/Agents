@@ -157,6 +157,12 @@ class AgentConfig:
     )
     """Top-level namespace for StoreBackend. Files under /memories/ route to this namespace."""
 
+    sandbox_enabled: bool = field(
+        default_factory=lambda: os.getenv("SANDBOX_ENABLED", "true").lower() == "true"
+    )
+    """Whether to enable virtual_mode on FilesystemBackend, restricting file access
+    to the project root directory. Set SANDBOX_ENABLED=false to allow unrestricted access."""
+
     memory_enabled: bool = field(
         default_factory=lambda: os.getenv("MEMORY_ENABLED", "true").lower() == "true"
     )

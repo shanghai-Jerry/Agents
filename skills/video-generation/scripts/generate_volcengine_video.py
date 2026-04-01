@@ -26,7 +26,7 @@ def generate_video(
     output_file: str,
     reference_images: list[str] | None = None,
     model: str = DEFAULT_MODEL,
-    duration: str = "5",
+    duration: int = 5,
     ratio: str = "16:9",
     generate_audio: bool = False,
 ) -> str:
@@ -67,17 +67,15 @@ def generate_video(
                 })
 
     # Build request body
-    body = {
+    body: dict = {
         "model": model,
         "content": content,
-        "parameters": {
-            "duration": duration,
-            "ratio": ratio,
-            "generate_audio": generate_audio,
-            "sample_count": 1,
-        },
+        "duration": duration,
+        "ratio": ratio,
+        "watermark": False,
     }
-
+    if generate_audio:
+        body["generate_audio"] = True
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
@@ -89,9 +87,9 @@ def generate_video(
         headers=headers,
         json=body,
     )
-    resp.raise_for_status()
+    #resp.raise_for_status()
     task_data = resp.json()
-    task_id = task_data.get("data", {}).get("task_id", "")
+    task_id = task_data.get("task_id", "")
     if not task_id:
         return f"Failed to submit task: {task_data}"
 
@@ -104,19 +102,18 @@ def generate_video(
             f"{API_BASE}/contents/generations/tasks/{task_id}",
             headers=headers,
         )
-        resp.raise_for_status()
         poll_data = resp.json()
 
-        task_status = poll_data.get("data", {}).get("task_status", "")
+        task_status = poll_data.get("status", "")
         if task_status == "succeeded":
             # Extract video URL(s)
-            content_list = poll_data.get("data", {}).get("content", [])
-            if not content_list:
+            content = poll_data.get("content", {})
+            if not content:
                 return f"Task succeeded but no content returned: {poll_data}"
-            video_url = content_list[0].get("url", "")
+            video_url = content.get("url", "")
             if not video_url:
                 # Some responses nest the url differently
-                video_url = content_list[0].get("video_url", "")
+                video_url = content.get("video_url", "")
             if not video_url:
                 return f"Cannot find video URL in response: {poll_data}"
 
@@ -170,8 +167,8 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--duration",
-        default="5",
-        choices=["5", "10"],
+        default=5,
+        choices=[5, 10],
         help="Video duration in seconds (default: 5)",
     )
     parser.add_argument(

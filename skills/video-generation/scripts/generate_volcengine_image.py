@@ -14,8 +14,8 @@ import sys
 import requests
 
 API_BASE = "https://ark.cn-beijing.volces.com/api/v3"
-DEFAULT_MODEL = "doubao-seedance-1-0-t2i-250415"
-DEFAULT_SIZE = "1024x1024"
+DEFAULT_MODEL = "doubao-seedream-4-5-251128"
+DEFAULT_SIZE = "2K"
 
 
 def generate_image(
@@ -53,7 +53,7 @@ def generate_image(
         "model": model,
         "prompt": prompt,
         "size": size,
-        "n": num,
+        "watermark": False
     }
     if seed is not None:
         body["seed"] = seed
@@ -64,7 +64,6 @@ def generate_image(
         headers=headers,
         json=body,
     )
-    resp.raise_for_status()
     data = resp.json()
 
     # Extract image URLs — defensive parsing for different response formats
