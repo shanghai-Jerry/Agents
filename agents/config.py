@@ -145,3 +145,29 @@ class AgentConfig:
         default_factory=lambda: os.getenv("LANGSMITH_PROJECT", "agents")
     )
     """LangSmith project name for tracing."""
+
+    # --- Backend & Storage ---
+    store_enabled: bool = field(
+        default_factory=lambda: os.getenv("STORE_ENABLED", "false").lower() == "true"
+    )
+    """Whether to enable persistent storage via LangGraph BaseStore (StoreBackend)."""
+
+    store_namespace: str = field(
+        default_factory=lambda: os.getenv("STORE_NAMESPACE", "agents")
+    )
+    """Top-level namespace for StoreBackend. Files under /memories/ route to this namespace."""
+
+    memory_enabled: bool = field(
+        default_factory=lambda: os.getenv("MEMORY_ENABLED", "true").lower() == "true"
+    )
+    """Whether to enable agent memory via MemoryMiddleware (AGENTS.md files)."""
+
+    memory_sources: list[str] = field(
+        default_factory=lambda: [
+            p.strip()
+            for p in os.getenv("MEMORY_SOURCES", "memory/AGENTS.md").split(",")
+            if p.strip()
+        ]
+    )
+    """List of memory file paths for MemoryMiddleware. Paths must be POSIX-style,
+    relative to the backend root (e.g. ``['memory/AGENTS.md']``)."""

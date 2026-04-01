@@ -9,5 +9,6 @@
 permissions:
   tools:
     - fetch_webpage_content  # Fetch webpage content
-  skills: []
+  skills: 
+    - video-generation
   groups: []

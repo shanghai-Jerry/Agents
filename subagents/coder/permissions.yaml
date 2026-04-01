@@ -8,4 +8,3 @@ permissions:
   skills: []
   groups:
     - core                   # think_tool
-    - code                   # sandbox_exec, sandbox_upload, sandbox_download

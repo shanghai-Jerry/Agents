@@ -21,6 +21,8 @@ from agents.orchestrator import create_orchestrator
 from agents.registry import AgentRegistry, SubAgentConfig
 from agents.permissions import PermissionManager
 from agents.resources import resource_registry
+from deepagents.backends import FilesystemBackend, CompositeBackend, StoreBackend, BackendContext
+from langgraph.store.memory import InMemoryStore
 from subagents.general import create_general_subagent
 
 # Load environment variables from .env file
@@ -32,6 +34,7 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 
+logger = logging.getLogger(__name__)
 
 def _build_registry() -> AgentRegistry:
     """Build and populate the sub-agent registry.
@@ -131,24 +134,77 @@ _registry = _build_registry()
 
 # --- Load orchestrator skill permissions ---
 _orchestrator_perm_path = Path(__file__).parent / "agents" / "permissions.yaml"
-_orchestrator_skills: list[str] | None = None
+_project_root = Path(__file__).parent.resolve()
 
 if _orchestrator_perm_path.exists():
     _orch_pm = PermissionManager(registry=resource_registry)
     _orch_pm.load_from_yaml("orchestrator", _orchestrator_perm_path)
-    _orchestrator_skills = _orch_pm.get_allowed_skill_paths("orchestrator")
-    if _orchestrator_skills:
+    _allowed_skill_names = _orch_pm.get_allowed_skill_names("orchestrator")
+    if _allowed_skill_names:
         logger.info(
             "Orchestrator authorized skills (%d): %s",
-            len(_orchestrator_skills),
-            ", ".join(s for s in _orchestrator_skills),
+            len(_allowed_skill_names),
+            ", ".join(_allowed_skill_names),
         )
+else:
+    _allowed_skill_names = None
+
+# Build skills source paths and backend
+# SkillsMiddleware expects POSIX directory paths relative to the backend root.
+# We use FilesystemBackend(root_dir=project_root) so that "skills/" resolves
+# to the project's skills/ directory on disk.
+_filesystem_backend = FilesystemBackend(root_dir=_project_root, virtual_mode=False)
+_skill_sources: list[str] | None = ["skills/"] if _allowed_skill_names is not None else None
+
+# --- Build backend (FilesystemBackend or CompositeBackend) ---
+# --- Build memory sources and store ---
+_config = AgentConfig()
+
+_memory_sources: list[str] | None = None
+_store = None
+
+# Memory: list of AGENTS.md file paths for MemoryMiddleware
+if _config.memory_enabled:
+    _memory_sources = _config.memory_sources
+    logger.info("Agent memory enabled, sources: %s", _memory_sources)
+
+# Store: LangGraph BaseStore for persistent storage via StoreBackend
+if _config.store_enabled:
+    _store = InMemoryStore()
+    logger.info("Persistent storage enabled (InMemoryStore), namespace: %s", _config.store_namespace)
+
+# CompositeBackend routes:
+#   /memories/  -> StoreBackend (persistent, cross-thread)
+#   everything -> FilesystemBackend (local filesystem)
+if _store is not None:
+    def _make_store_backend(runtime):
+        """Factory: create StoreBackend with fixed namespace."""
+        return StoreBackend(
+            runtime,
+            namespace=lambda ctx: (_config.store_namespace,),
+        )
+
+    _backend = CompositeBackend(
+        default=_filesystem_backend,
+        routes={"/memories/": _make_store_backend},
+    )
+    logger.info(
+        "Using CompositeBackend: default=FilesystemBackend(%s), routes={'/memories/': StoreBackend}",
+        _project_root,
+    )
+else:
+    _backend = _filesystem_backend
+
+logger.info("Orchestrator skill sources: %s, backend: %s", _skill_sources, _project_root)
 
 # Create the orchestrator agent
 agent = create_orchestrator(
-    config=AgentConfig(),
+    config=_config,
     registry=_registry,
-    skills=_orchestrator_skills,
+    skills=_skill_sources,
+    backend=_backend,
+    memory=_memory_sources,
+    store=_store,
 )
 
 

@@ -13,9 +13,11 @@ from datetime import datetime
 from typing import Any
 
 from deepagents import create_deep_agent
+from deepagents.backends.protocol import BackendFactory, BackendProtocol
 from langchain.chat_models import init_chat_model
 from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import BaseTool
+from langgraph.store.base import BaseStore
 
 from agents.config import AgentConfig
 from agents.prompts import (
@@ -33,6 +35,9 @@ def create_orchestrator(
     extra_tools: list[BaseTool | Any] | None = None,
     model: BaseChatModel | str | None = None,
     skills: list[str] | None = None,
+    backend: BackendProtocol | BackendFactory | None = None,
+    memory: list[str] | None = None,
+    store: BaseStore | None = None,
     **kwargs: Any,
 ) -> Any:
     """Create the main orchestrator agent.
@@ -49,7 +54,15 @@ def create_orchestrator(
         extra_tools: Additional tools for the orchestrator itself (beyond routing).
         model: Override model. Can be a string (e.g. ``"anthropic:claude-sonnet-4-5-20250929"``)
             or a ``BaseChatModel`` instance. Falls back to ``config.primary_model``.
-        skills: Skill file paths to load via ``SkillsMiddleware``.
+        skills: Skill source directory paths for ``SkillsMiddleware``.
+            Must be POSIX paths relative to the backend's root (e.g. ``["skills/"]``).
+        backend: Backend for file storage and execution. If ``None``, defaults to
+            ``StateBackend`` (in-memory). Pass ``FilesystemBackend(root_dir=...)`` to
+            load skills from disk. Use ``CompositeBackend`` for hybrid storage.
+        memory: Optional list of memory file paths (AGENTS.md) for MemoryMiddleware.
+            Files are loaded at agent startup and injected into the system prompt.
+        store: Optional LangGraph BaseStore for persistent storage (required when
+            using ``StoreBackend`` in a ``CompositeBackend``).
         **kwargs: Additional keyword arguments forwarded to ``create_deep_agent``.
 
     Returns:
@@ -111,6 +124,9 @@ def create_orchestrator(
         system_prompt=system_prompt,
         subagents=subagent_dicts,
         skills=skills,
+        backend=backend,
+        memory=memory,
+        store=store,
         name="orchestrator",
         **kwargs,
     )

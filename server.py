@@ -21,6 +21,7 @@ from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
+logger.setLevel(logging.DEBUG)
 # Module-level agent reference, set during startup
 _agent = None
 
@@ -36,11 +37,41 @@ async def lifespan(app: FastAPI):
     from agent import _build_registry
     from agents.config import AgentConfig
     from agents.orchestrator import create_orchestrator
+    from agents.permissions import PermissionManager
+    from agents.resources import resource_registry
+    from deepagents.backends import FilesystemBackend
 
     config = AgentConfig()
     registry = _build_registry()
+
+    # --- Load orchestrator skill permissions ---
+    project_root = Path(__file__).parent.resolve()
+    perm_path = project_root / "agents" / "permissions.yaml"
+
+    if perm_path.exists():
+        pm = PermissionManager(registry=resource_registry)
+        pm.load_from_yaml("orchestrator", perm_path)
+        allowed_skills = pm.get_allowed_skill_names("orchestrator")
+        logger.info(
+            "Orchestrator authorized skills (%d): %s",
+            len(allowed_skills),
+            ", ".join(allowed_skills),
+        )
+    else:
+        allowed_skills = None
+
+    # Build backend and skill sources
+    # SkillsMiddleware expects POSIX directory paths relative to the backend root.
+    backend = FilesystemBackend(root_dir=project_root, virtual_mode=False)
+    skill_sources = ["skills/"] if allowed_skills is not None else None
+
     global _agent
-    _agent = create_orchestrator(config=config, registry=registry)
+    _agent = create_orchestrator(
+        config=config,
+        registry=registry,
+        skills=skill_sources,
+        backend=backend,
+    )
 
     logger.info("Agent initialized successfully")
     yield

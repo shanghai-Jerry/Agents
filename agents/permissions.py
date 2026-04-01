@@ -382,6 +382,21 @@ class PermissionManager:
 
         return paths
 
+    def get_allowed_skill_names(self, agent_name: str) -> list[str]:
+        """Get names of all skills that an agent is authorized to use.
+
+        Args:
+            agent_name: The agent's unique name.
+
+        Returns:
+            A list of skill names. Returns an empty list if the agent has
+            no permission configuration or no skills are authorized.
+        """
+        config = self._configs.get(agent_name)
+        if config is None:
+            return []
+        return sorted(config.allowed_skill_names)
+
     # --- Query ---
 
     def get_config(self, agent_name: str) -> PermissionConfig | None:
